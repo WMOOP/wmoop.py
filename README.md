@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="wmoop.py" src="brand/wmoop.py.svg" width="340">
+</p>
+
 # wmoop.py
 
 **The Python reference binding of [WMOOP](https://github.com/WMOOP) — *World Map
