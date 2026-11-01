@@ -70,6 +70,9 @@ pinned as git submodules, `external/wmoop.doc` and `external/wmoop.tools`, and
 `generated/WMOOP_SOURCE.json` records the exact commits it was generated from.
 
 - **Never edit `generated/` by hand.** CI regenerates it from the pins and fails on any difference.
+- **Regeneration is automatic.** When `wmoop.doc` or `wmoop.tools` changes, and daily,
+  [`regen.yml`](.github/workflows/regen.yml) moves both pins to upstream `main`, regenerates, runs
+  the tests and opens (or updates) one `chore(regen): …` pull request.
 - **Regenerate** after moving a pin. This needs Python 3.10+ and
   `pip install -r external/wmoop.doc/schema/requirements.txt`:
 
