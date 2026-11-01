@@ -1,8 +1,8 @@
 # Contributing
 
 This repository is the **Python reference binding** of the WMOOP World Model. WMOOP is a
-multi-repository project, so the **canonical** contribution process, governance, ethics and code of
-conduct live in the documentation repository, [`wmoop.doc`](https://github.com/WMOOP/wmoop.doc):
+multi-repository project, so the **canonical** contribution process, governance and ethics live in
+the documentation repository, [`wmoop.doc`](https://github.com/WMOOP/wmoop.doc):
 
 - [Contributing guide](https://github.com/WMOOP/wmoop.doc/blob/main/CONTRIBUTING.md)
 - [AI contributor protocol](https://github.com/WMOOP/wmoop.doc/blob/main/AI_CONTRIBUTING.md)
@@ -10,8 +10,8 @@ conduct live in the documentation repository, [`wmoop.doc`](https://github.com/W
 - [Ethics & quality](https://github.com/WMOOP/wmoop.doc/blob/main/ETHICS.md)
 - [Design patterns & OOP practices](https://github.com/WMOOP/wmoop.doc/blob/main/PATTERNS.md)
 
-> The canonical documents currently live on the `docs/foundation-v0` branch of `wmoop.doc` and move
-> to `main` once that pull request is merged.
+> The code of conduct and the security policy are organisation-wide, in
+> [`WMOOP/.github`](https://github.com/WMOOP/.github); GitHub shows them in this repository too.
 
 ## Working in this repository
 
