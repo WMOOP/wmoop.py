@@ -9,7 +9,10 @@
 from __future__ import annotations
 
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class Building(*ext('architecture', 'Building'), Entity):
@@ -40,7 +43,7 @@ class Room(*ext('architecture', 'Room'), Entity):
 
     def __init__(self, id: ConceptId | str, name: str, *, floor_area: Quantity | None = None) -> None:
         super().__init__(id, name)
-        self._wm_floor_area = floor_area
+        self._wm_floor_area = None if floor_area is None else check_quantity(floor_area, 'm2', 'wmoop.core/Area', 'floor_area')
 
     @property
     def floor_area(self) -> Quantity | None:

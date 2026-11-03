@@ -8,8 +8,12 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class MathematicalObject(*ext('math', 'MathematicalObject'), Entity):
@@ -30,7 +34,7 @@ class Collection(*ext('math', 'Collection'), MathematicalObject):
     def __init__(self, id: ConceptId | str, name: str, *, is_empty: bool) -> None:
         super().__init__(id, name)
         if is_empty is None:
-            raise ValueError("is_empty is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "is_empty is required.")
         self._wm_is_empty = is_empty
 
     @property
@@ -45,10 +49,13 @@ class Set(*ext('math', 'Set'), Collection):
     WM_ID = 'wmoop.math/Set'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    EmptySet: ClassVar[Set]
+
     def __init__(self, id: ConceptId | str, name: str, *, is_empty: bool, is_finite: bool) -> None:
         super().__init__(id, name, is_empty=is_empty)
         if is_finite is None:
-            raise ValueError("is_finite is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "is_finite is required.")
         self._wm_is_finite = is_finite
 
     @property
@@ -108,11 +115,13 @@ class Polygon(*ext('math', 'Polygon'), GeometricShape):
     def __init__(self, id: ConceptId | str, name: str, *, side_count: int, is_regular: bool) -> None:
         super().__init__(id, name)
         if side_count is None:
-            raise ValueError("side_count is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "side_count is required.")
         self._wm_side_count = side_count
         if is_regular is None:
-            raise ValueError("is_regular is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "is_regular is required.")
         self._wm_is_regular = is_regular
+        if not (self.side_count >= 3):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A polygon has at least three sides. [at-least-three-sides: self.sideCount >= 3]')
 
     @property
     def side_count(self) -> int:
@@ -131,12 +140,22 @@ class Triangle(*ext('math', 'Triangle'), Polygon):
     WM_ID = 'wmoop.math/Triangle'
     WM_KIND = 'concrete'
 
+    def __init__(self, id: ConceptId | str, name: str, *, side_count: int, is_regular: bool) -> None:
+        super().__init__(id, name, side_count=side_count, is_regular=is_regular)
+        if not (self.side_count == 3):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A triangle has exactly three sides. [three-sides: self.sideCount == 3]')
+
 
 class Quadrilateral(*ext('math', 'Quadrilateral'), Polygon):
     """Quadrilateral - wmoop.math/Quadrilateral. A four-sided polygon (quadrilateral). Its four interior angles sum to four right angles (2π rad)."""
 
     WM_ID = 'wmoop.math/Quadrilateral'
     WM_KIND = 'concrete'
+
+    def __init__(self, id: ConceptId | str, name: str, *, side_count: int, is_regular: bool) -> None:
+        super().__init__(id, name, side_count=side_count, is_regular=is_regular)
+        if not (self.side_count == 4):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A quadrilateral has exactly four sides. [four-sides: self.sideCount == 4]')
 
 
 class AlgebraicStructure(*ext('math', 'AlgebraicStructure'), MathematicalObject):
@@ -154,11 +173,19 @@ class Group(*ext('math', 'Group'), AlgebraicStructure):
     WM_ID = 'wmoop.math/Group'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    TrivialGroup: ClassVar[Group]
+
+    # Invariant closure waits for WMX (ADR 0002): forall a, b in self.underlyingSet: (a · b) in self.underlyingSet
+    # Invariant associativity waits for WMX (ADR 0002): forall a, b, c in self.underlyingSet: (a · b) · c == a · (b · c)
+    # Invariant identity waits for WMX (ADR 0002): exists e in self.underlyingSet: forall a in self.underlyingSet: (e · a == a) and (a · e == a)
+    # Invariant inverse waits for WMX (ADR 0002): forall a in self.underlyingSet: exists b in self.underlyingSet: (a · b == e) and (b · a == e)
+
     def __init__(self, id: ConceptId | str, name: str, *, order: Quantity | None = None, is_abelian: bool) -> None:
         super().__init__(id, name)
-        self._wm_order = order
+        self._wm_order = None if order is None else check_quantity(order, 'one', 'wmoop.core/Count', 'order')
         if is_abelian is None:
-            raise ValueError("is_abelian is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "is_abelian is required.")
         self._wm_is_abelian = is_abelian
 
     @property
@@ -170,3 +197,22 @@ class Group(*ext('math', 'Group'), AlgebraicStructure):
     def is_abelian(self) -> bool:
         """Whether the group's binary operation is commutative (a · b = b · a for all a, b)."""
         return self._wm_is_abelian
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The unique set with no members (∅); it is empty and finite.
+Set.EmptySet = Set(
+    'wmoop.math/EmptySet',
+    'EmptySet',
+    is_empty=True,
+    is_finite=True,
+)
+
+# The trivial group ({e}, ·): the one-element group whose only element is the identity; it is abelian and has order 1.
+Group.TrivialGroup = Group(
+    'wmoop.math/TrivialGroup',
+    'TrivialGroup',
+    order=Quantity(1, 'one'),
+    is_abelian=True,
+)

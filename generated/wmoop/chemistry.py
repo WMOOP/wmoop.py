@@ -9,8 +9,12 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class StateOfMatter(str, Enum):
@@ -32,7 +36,7 @@ class ChemicalSubstance(*ext('chemistry', 'ChemicalSubstance'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, standard_state: StateOfMatter | None = None, melting_point: Quantity | None = None) -> None:
         super().__init__(id, name)
         self._wm_standard_state = None if standard_state is None else StateOfMatter(standard_state)
-        self._wm_melting_point = melting_point
+        self._wm_melting_point = None if melting_point is None else check_quantity(melting_point, 'K', 'wmoop.core/Temperature', 'melting_point')
 
     @property
     def standard_state(self) -> StateOfMatter | None:
@@ -51,16 +55,22 @@ class ChemicalElement(*ext('chemistry', 'ChemicalElement'), ChemicalSubstance):
     WM_ID = 'wmoop.chemistry/ChemicalElement'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Hydrogen: ClassVar[ChemicalElement]
+    Carbon: ClassVar[ChemicalElement]
+    Oxygen: ClassVar[ChemicalElement]
+    Iron: ClassVar[ChemicalElement]
+
     occurs_in = Many('ChemicalCompound', inverse='has_constituent_element', doc='Inverse of wmoop.chemistry/ChemicalCompound#hasConstituentElement.')
     atoms = Many('Atom', inverse='element', doc='Inverse of wmoop.chemistry/Atom#element.')
 
     def __init__(self, id: ConceptId | str, name: str, *, standard_state: StateOfMatter | None = None, melting_point: Quantity | None = None, atomic_number: int, symbol: str, standard_atomic_weight: float | None = None) -> None:
         super().__init__(id, name, standard_state=standard_state, melting_point=melting_point)
         if atomic_number is None:
-            raise ValueError("atomic_number is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "atomic_number is required.")
         self._wm_atomic_number = atomic_number
         if symbol is None:
-            raise ValueError("symbol is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "symbol is required.")
         self._wm_symbol = symbol
         self._wm_standard_atomic_weight = standard_atomic_weight
 
@@ -142,5 +152,45 @@ class Catalyst(*ext('chemistry', 'Catalyst'), Role):
 
     WM_ID = 'wmoop.chemistry/Catalyst'
     WM_PLAYED_BY = 'wmoop.chemistry/ChemicalSubstance'
+    WM_MAX_PER_PLAYER = 1
 
     catalyses = Many('ChemicalReaction', inverse='catalysed_by', doc='catalyses')
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The chemical element with atomic number 1, the lightest element.
+ChemicalElement.Hydrogen = ChemicalElement(
+    'wmoop.chemistry/Hydrogen',
+    'Hydrogen',
+    atomic_number=1,
+    symbol='H',
+    standard_atomic_weight=1.008,
+)
+
+# The chemical element with atomic number 6, the structural basis of organic chemistry.
+ChemicalElement.Carbon = ChemicalElement(
+    'wmoop.chemistry/Carbon',
+    'Carbon',
+    atomic_number=6,
+    symbol='C',
+    standard_atomic_weight=12.011,
+)
+
+# The chemical element with atomic number 8.
+ChemicalElement.Oxygen = ChemicalElement(
+    'wmoop.chemistry/Oxygen',
+    'Oxygen',
+    atomic_number=8,
+    symbol='O',
+    standard_atomic_weight=15.999,
+)
+
+# The chemical element with atomic number 26, a transition metal (Latin ferrum).
+ChemicalElement.Iron = ChemicalElement(
+    'wmoop.chemistry/Iron',
+    'Iron',
+    atomic_number=26,
+    symbol='Fe',
+    standard_atomic_weight=55.845,
+)

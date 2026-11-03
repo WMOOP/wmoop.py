@@ -8,8 +8,12 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class PitchClass(*ext('music', 'PitchClass'), Entity):
@@ -17,6 +21,20 @@ class PitchClass(*ext('music', 'PitchClass'), Entity):
 
     WM_ID = 'wmoop.music/PitchClass'
     WM_KIND = 'concrete'
+
+    # The model's individuals of this class, set at the end of the module.
+    PitchC: ClassVar[PitchClass]
+    PitchCSharp: ClassVar[PitchClass]
+    PitchD: ClassVar[PitchClass]
+    PitchDSharp: ClassVar[PitchClass]
+    PitchE: ClassVar[PitchClass]
+    PitchF: ClassVar[PitchClass]
+    PitchFSharp: ClassVar[PitchClass]
+    PitchG: ClassVar[PitchClass]
+    PitchGSharp: ClassVar[PitchClass]
+    PitchA: ClassVar[PitchClass]
+    PitchASharp: ClassVar[PitchClass]
+    PitchB: ClassVar[PitchClass]
 
     sounded_in = Many('NoteOccurrence', inverse='sounds_pitch_class', doc='Inverse of wmoop.music/NoteOccurrence#soundsPitchClass.')
 
@@ -27,10 +45,16 @@ class Interval(*ext('music', 'Interval'), Entity):
     WM_ID = 'wmoop.music/Interval'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    PerfectUnison: ClassVar[Interval]
+    MajorThird: ClassVar[Interval]
+    PerfectFifth: ClassVar[Interval]
+    Octave: ClassVar[Interval]
+
     def __init__(self, id: ConceptId | str, name: str, *, semitones: int) -> None:
         super().__init__(id, name)
         if semitones is None:
-            raise ValueError("semitones is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "semitones is required.")
         self._wm_semitones = semitones
 
     @property
@@ -97,6 +121,9 @@ class Membranophone(*ext('music', 'Membranophone'), MusicalInstrument):
     WM_ID = 'wmoop.music/Membranophone'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    SnareDrum: ClassVar[Membranophone]
+
 
 class Chordophone(*ext('music', 'Chordophone'), MusicalInstrument):
     """Chordophone - wmoop.music/Chordophone. An instrument that produces sound by the vibration of one or more stretched strings (e.g. a violin, a piano)."""
@@ -104,12 +131,18 @@ class Chordophone(*ext('music', 'Chordophone'), MusicalInstrument):
     WM_ID = 'wmoop.music/Chordophone'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Violin: ClassVar[Chordophone]
+
 
 class Aerophone(*ext('music', 'Aerophone'), MusicalInstrument):
     """Aerophone - wmoop.music/Aerophone. An instrument that produces sound by a vibrating column or body of air (e.g. a flute, a trumpet)."""
 
     WM_ID = 'wmoop.music/Aerophone'
     WM_KIND = 'concrete'
+
+    # The model's individuals of this class, set at the end of the module.
+    Flute: ClassVar[Aerophone]
 
 
 class Electrophone(*ext('music', 'Electrophone'), MusicalInstrument):
@@ -142,7 +175,7 @@ class NoteOccurrence(*ext('music', 'NoteOccurrence'), Entity):
 
     def __init__(self, id: ConceptId | str, name: str, *, duration: Quantity | None = None) -> None:
         super().__init__(id, name)
-        self._wm_duration = duration
+        self._wm_duration = None if duration is None else check_quantity(duration, 's', 'wmoop.core/Time', 'duration')
 
     @property
     def duration(self) -> Quantity | None:
@@ -157,3 +190,124 @@ class Performer(*ext('music', 'Performer'), Role):
     WM_PLAYED_BY = 'wmoop.nature/Person'
 
     performs_in = Many('MusicalPerformance', inverse='performers', doc='performsIn')
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The pitch class C (MIDI note 0, 12, …).
+PitchClass.PitchC = PitchClass(
+    'wmoop.music/PitchC',
+    'C',
+)
+
+# The pitch class C sharp / D flat.
+PitchClass.PitchCSharp = PitchClass(
+    'wmoop.music/PitchCSharp',
+    'C#',
+)
+
+# The pitch class D.
+PitchClass.PitchD = PitchClass(
+    'wmoop.music/PitchD',
+    'D',
+)
+
+# The pitch class D sharp / E flat.
+PitchClass.PitchDSharp = PitchClass(
+    'wmoop.music/PitchDSharp',
+    'D#',
+)
+
+# The pitch class E.
+PitchClass.PitchE = PitchClass(
+    'wmoop.music/PitchE',
+    'E',
+)
+
+# The pitch class F.
+PitchClass.PitchF = PitchClass(
+    'wmoop.music/PitchF',
+    'F',
+)
+
+# The pitch class F sharp / G flat.
+PitchClass.PitchFSharp = PitchClass(
+    'wmoop.music/PitchFSharp',
+    'F#',
+)
+
+# The pitch class G.
+PitchClass.PitchG = PitchClass(
+    'wmoop.music/PitchG',
+    'G',
+)
+
+# The pitch class G sharp / A flat.
+PitchClass.PitchGSharp = PitchClass(
+    'wmoop.music/PitchGSharp',
+    'G#',
+)
+
+# The pitch class A; A4 is the 440 Hz tuning reference (ISO 16).
+PitchClass.PitchA = PitchClass(
+    'wmoop.music/PitchA',
+    'A',
+)
+
+# The pitch class A sharp / B flat.
+PitchClass.PitchASharp = PitchClass(
+    'wmoop.music/PitchASharp',
+    'A#',
+)
+
+# The pitch class B.
+PitchClass.PitchB = PitchClass(
+    'wmoop.music/PitchB',
+    'B',
+)
+
+# The interval of zero semitones — two notes of the same pitch.
+Interval.PerfectUnison = Interval(
+    'wmoop.music/PerfectUnison',
+    'PerfectUnison',
+    semitones=0,
+)
+
+# The interval of four semitones.
+Interval.MajorThird = Interval(
+    'wmoop.music/MajorThird',
+    'MajorThird',
+    semitones=4,
+)
+
+# The interval of seven semitones.
+Interval.PerfectFifth = Interval(
+    'wmoop.music/PerfectFifth',
+    'PerfectFifth',
+    semitones=7,
+)
+
+# The interval of twelve semitones, spanning one full pitch-class cycle.
+Interval.Octave = Interval(
+    'wmoop.music/Octave',
+    'Octave',
+    semitones=12,
+)
+
+# A four-stringed bowed chordophone of the violin family.
+Chordophone.Violin = Chordophone(
+    'wmoop.music/Violin',
+    'Violin',
+)
+
+# An edge-blown woodwind aerophone sounded by directing air across an opening.
+Aerophone.Flute = Aerophone(
+    'wmoop.music/Flute',
+    'Flute',
+)
+
+# A membranophone with a struck head and snares that rattle against it.
+Membranophone.SnareDrum = Membranophone(
+    'wmoop.music/SnareDrum',
+    'SnareDrum',
+)

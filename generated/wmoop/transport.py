@@ -12,7 +12,10 @@ import datetime  # noqa: F401
 from collections.abc import Iterable
 from enum import Enum
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class LicenceCategory(str, Enum):
@@ -35,9 +38,11 @@ class Vehicle(*ext('transport', 'Vehicle'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, wheel_count: int, max_speed: Quantity | None = None) -> None:
         super().__init__(id, name)
         if wheel_count is None:
-            raise ValueError("wheel_count is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "wheel_count is required.")
         self._wm_wheel_count = wheel_count
-        self._wm_max_speed = max_speed
+        self._wm_max_speed = None if max_speed is None else check_quantity(max_speed, 'km/h', 'wmoop.core/Speed', 'max_speed')
+        if not (self.wheel_count >= 0):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A vehicle cannot have a negative wheel count. [wheels-nonneg: self.wheelCount >= 0]')
 
     @property
     def wheel_count(self) -> int:
@@ -77,8 +82,8 @@ class Motorcycle(*ext('transport', 'Motorcycle'), RoadVehicle):
     def __init__(self, id: ConceptId | str, name: str, *, wheel_count: int, max_speed: Quantity | None = None, road_legal: bool = True, engine_displacement: Quantity) -> None:
         super().__init__(id, name, wheel_count=wheel_count, max_speed=max_speed, road_legal=road_legal)
         if engine_displacement is None:
-            raise ValueError("engine_displacement is required.")
-        self._wm_engine_displacement = engine_displacement
+            raise WmoopValueError("WM-REQUIRED-MISSING", "engine_displacement is required.")
+        self._wm_engine_displacement = check_quantity(engine_displacement, 'cm3', 'wmoop.core/Volume', 'engine_displacement')
 
     @property
     def engine_displacement(self) -> Quantity:
@@ -98,17 +103,18 @@ class Driver(*ext('transport', 'Driver'), Role):
 
     WM_ID = 'wmoop.transport/Driver'
     WM_PLAYED_BY = 'wmoop.nature/Person'
+    WM_MAX_PER_PLAYER = 1
 
     operates = Many('RoadVehicle', inverse='operated_by', doc='operates')
 
     def __init__(self, *, licence_number: str, licence_categories: Iterable[LicenceCategory], licence_expiry: datetime.date | None = None) -> None:
         super().__init__()
         if licence_number is None:
-            raise ValueError("licence_number is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "licence_number is required.")
         self._wm_licence_number = licence_number
         self._wm_licence_categories = tuple(LicenceCategory(v) for v in licence_categories)
         if not self._wm_licence_categories:
-            raise ValueError("licence_categories needs at least one value.")
+            raise WmoopValueError("WM-CARDINALITY", "licence_categories needs at least one value.")
         self._wm_licence_expiry = licence_expiry
 
     @property
