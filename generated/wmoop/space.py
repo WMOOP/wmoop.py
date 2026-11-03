@@ -8,8 +8,12 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class CelestialBody(*ext('space', 'CelestialBody'), Entity):
@@ -24,9 +28,11 @@ class CelestialBody(*ext('space', 'CelestialBody'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, mass: Quantity, equatorial_radius: Quantity | None = None) -> None:
         super().__init__(id, name)
         if mass is None:
-            raise ValueError("mass is required.")
-        self._wm_mass = mass
-        self._wm_equatorial_radius = equatorial_radius
+            raise WmoopValueError("WM-REQUIRED-MISSING", "mass is required.")
+        self._wm_mass = check_quantity(mass, 'kg', 'wmoop.core/Mass', 'mass')
+        self._wm_equatorial_radius = None if equatorial_radius is None else check_quantity(equatorial_radius, 'km', 'wmoop.core/Length', 'equatorial_radius')
+        if not (self.mass.in_('kg') > 0):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A celestial body must have a positive mass. [positive-mass: self.mass > 0]')
 
     @property
     def mass(self) -> Quantity:
@@ -45,14 +51,26 @@ class Planet(*ext('space', 'Planet'), CelestialBody):
     WM_ID = 'wmoop.space/Planet'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Mercury: ClassVar[Planet]
+    Venus: ClassVar[Planet]
+    Earth: ClassVar[Planet]
+    Mars: ClassVar[Planet]
+    Jupiter: ClassVar[Planet]
+    Saturn: ClassVar[Planet]
+    Uranus: ClassVar[Planet]
+    Neptune: ClassVar[Planet]
+
     def __init__(self, id: ConceptId | str, name: str, *, mass: Quantity, equatorial_radius: Quantity | None = None, orbital_period: Quantity, number_of_moons: Quantity) -> None:
         super().__init__(id, name, mass=mass, equatorial_radius=equatorial_radius)
         if orbital_period is None:
-            raise ValueError("orbital_period is required.")
-        self._wm_orbital_period = orbital_period
+            raise WmoopValueError("WM-REQUIRED-MISSING", "orbital_period is required.")
+        self._wm_orbital_period = check_quantity(orbital_period, 'd', 'wmoop.core/Time', 'orbital_period')
         if number_of_moons is None:
-            raise ValueError("number_of_moons is required.")
-        self._wm_number_of_moons = number_of_moons
+            raise WmoopValueError("WM-REQUIRED-MISSING", "number_of_moons is required.")
+        self._wm_number_of_moons = check_quantity(number_of_moons, 'one', 'wmoop.core/Count', 'number_of_moons')
+        if not (self.number_of_moons.in_('one') >= 0):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'A planet cannot have a negative number of moons. [moons-nonneg: self.numberOfMoons >= 0]')
 
     @property
     def orbital_period(self) -> Quantity:
@@ -70,6 +88,9 @@ class DwarfPlanet(*ext('space', 'DwarfPlanet'), CelestialBody):
 
     WM_ID = 'wmoop.space/DwarfPlanet'
     WM_KIND = 'concrete'
+
+    # The model's individuals of this class, set at the end of the module.
+    Pluto: ClassVar[DwarfPlanet]
 
 
 class Star(*ext('space', 'Star'), CelestialBody):
@@ -94,13 +115,114 @@ class PlanetarySystem(*ext('space', 'PlanetarySystem'), Entity):
     WM_ID = 'wmoop.space/PlanetarySystem'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    SolarSystem: ClassVar[PlanetarySystem]
+
     members = Many('CelestialBody', inverse='part_of_system', doc='Inverse of wmoop.space/CelestialBody#partOfSystem.')
 
     def __init__(self, id: ConceptId | str, name: str, *, number_of_planets: Quantity | None = None) -> None:
         super().__init__(id, name)
-        self._wm_number_of_planets = number_of_planets
+        self._wm_number_of_planets = None if number_of_planets is None else check_quantity(number_of_planets, 'one', 'wmoop.core/Count', 'number_of_planets')
 
     @property
     def number_of_planets(self) -> Quantity | None:
         """The number of bodies in the system classified as planets."""
         return self._wm_number_of_planets
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The smallest planet and the closest to the Sun.
+Planet.Mercury = Planet(
+    'wmoop.space/Mercury',
+    'Mercury',
+    mass=Quantity(3.3e+23, 'kg'),
+    equatorial_radius=Quantity(2439.7, 'km'),
+    orbital_period=Quantity(88.0, 'd'),
+    number_of_moons=Quantity(0, 'one'),
+)
+
+# The second planet from the Sun and the hottest in the Solar System.
+Planet.Venus = Planet(
+    'wmoop.space/Venus',
+    'Venus',
+    mass=Quantity(4.87e+24, 'kg'),
+    equatorial_radius=Quantity(6051.8, 'km'),
+    orbital_period=Quantity(224.7, 'd'),
+    number_of_moons=Quantity(0, 'one'),
+)
+
+# The third planet from the Sun and the only known body to support life.
+Planet.Earth = Planet(
+    'wmoop.space/Earth',
+    'Earth',
+    mass=Quantity(5.97e+24, 'kg'),
+    equatorial_radius=Quantity(6378.1, 'km'),
+    orbital_period=Quantity(365.2, 'd'),
+    number_of_moons=Quantity(1, 'one'),
+)
+
+# The fourth planet from the Sun, a cold desert world often called the Red Planet.
+Planet.Mars = Planet(
+    'wmoop.space/Mars',
+    'Mars',
+    mass=Quantity(6.42e+23, 'kg'),
+    equatorial_radius=Quantity(3396.2, 'km'),
+    orbital_period=Quantity(687.0, 'd'),
+    number_of_moons=Quantity(2, 'one'),
+)
+
+# The fifth and largest planet in the Solar System, a gas giant.
+Planet.Jupiter = Planet(
+    'wmoop.space/Jupiter',
+    'Jupiter',
+    mass=Quantity(1.898e+27, 'kg'),
+    equatorial_radius=Quantity(71492, 'km'),
+    orbital_period=Quantity(4331, 'd'),
+    number_of_moons=Quantity(95, 'one'),
+)
+
+# The sixth planet from the Sun, a gas giant famous for its ring system.
+Planet.Saturn = Planet(
+    'wmoop.space/Saturn',
+    'Saturn',
+    mass=Quantity(5.68e+26, 'kg'),
+    equatorial_radius=Quantity(60268, 'km'),
+    orbital_period=Quantity(10747, 'd'),
+    number_of_moons=Quantity(274, 'one'),
+)
+
+# The seventh planet from the Sun, an ice giant that rotates on its side.
+Planet.Uranus = Planet(
+    'wmoop.space/Uranus',
+    'Uranus',
+    mass=Quantity(8.68e+25, 'kg'),
+    equatorial_radius=Quantity(25559, 'km'),
+    orbital_period=Quantity(30589, 'd'),
+    number_of_moons=Quantity(28, 'one'),
+)
+
+# The eighth and most distant planet from the Sun, an ice giant.
+Planet.Neptune = Planet(
+    'wmoop.space/Neptune',
+    'Neptune',
+    mass=Quantity(1.02e+26, 'kg'),
+    equatorial_radius=Quantity(24764, 'km'),
+    orbital_period=Quantity(59800, 'd'),
+    number_of_moons=Quantity(16, 'one'),
+)
+
+# A dwarf planet in the Kuiper belt. Classified as the ninth planet from 1930 until 2006, when the IAU adopted the planet/dwarf-planet distinction; Pluto shares its orbital neighbourhood with other Kuiper-belt objects and so is a dwarf planet, not a planet. It has five known moons and an orbital period of about 90,560 days.
+DwarfPlanet.Pluto = DwarfPlanet(
+    'wmoop.space/Pluto',
+    'Pluto',
+    mass=Quantity(1.3e+22, 'kg'),
+    equatorial_radius=Quantity(1188.3, 'km'),
+)
+
+# The planetary system of the Sun, containing the eight planets, the dwarf planets and smaller bodies bound to it.
+PlanetarySystem.SolarSystem = PlanetarySystem(
+    'wmoop.space/SolarSystem',
+    'Solar System',
+    number_of_planets=Quantity(8, 'one'),
+)

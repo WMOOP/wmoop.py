@@ -9,8 +9,12 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class CategoricalForm(str, Enum):
@@ -57,7 +61,7 @@ class CategoricalProposition(*ext('philosophy', 'CategoricalProposition'), Propo
     def __init__(self, id: ConceptId | str, name: str, *, content: str | None = None, form: CategoricalForm) -> None:
         super().__init__(id, name, content=content)
         if form is None:
-            raise ValueError("form is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "form is required.")
         self._wm_form = CategoricalForm(form)
 
     @property
@@ -78,8 +82,10 @@ class Argument(*ext('philosophy', 'Argument'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, premise_count: int) -> None:
         super().__init__(id, name)
         if premise_count is None:
-            raise ValueError("premise_count is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "premise_count is required.")
         self._wm_premise_count = premise_count
+        if not (self.premise_count >= 1):
+            raise WmoopValueError("WM-INVARIANT-FAILED", 'An argument must offer at least one premise. [premise-count-positive: self.premiseCount >= 1]')
 
     @property
     def premise_count(self) -> int:
@@ -151,6 +157,18 @@ class AristotelianCategory(*ext('philosophy', 'AristotelianCategory'), Entity):
     WM_ID = 'wmoop.philosophy/AristotelianCategory'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Substance: ClassVar[AristotelianCategory]
+    Quantity: ClassVar[AristotelianCategory]
+    Quality: ClassVar[AristotelianCategory]
+    Relation: ClassVar[AristotelianCategory]
+    Place: ClassVar[AristotelianCategory]
+    Time: ClassVar[AristotelianCategory]
+    Position: ClassVar[AristotelianCategory]
+    State: ClassVar[AristotelianCategory]
+    Action: ClassVar[AristotelianCategory]
+    Affection: ClassVar[AristotelianCategory]
+
     def __init__(self, id: ConceptId | str, name: str, *, greek_term: str | None = None) -> None:
         super().__init__(id, name)
         self._wm_greek_term = greek_term
@@ -167,6 +185,13 @@ class Branch(*ext('philosophy', 'Branch'), Entity):
     WM_ID = 'wmoop.philosophy/Branch'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Metaphysics: ClassVar[Branch]
+    Epistemology: ClassVar[Branch]
+    Ethics: ClassVar[Branch]
+    Logic: ClassVar[Branch]
+    Aesthetics: ClassVar[Branch]
+
     addressed_by = Many('PhilosophicalPosition', inverse='addresses_branch', doc='Inverse of wmoop.philosophy/PhilosophicalPosition#addressesBranch.')
 
     def __init__(self, id: ConceptId | str, name: str, *, central_question: str | None = None) -> None:
@@ -177,3 +202,111 @@ class Branch(*ext('philosophy', 'Branch'), Entity):
     def central_question(self) -> str | None:
         """A short statement of the central question the branch addresses."""
         return self._wm_central_question
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# What a thing is - the category of independent beings (Aristotle's examples: man, horse).
+AristotelianCategory.Substance = AristotelianCategory(
+    'wmoop.philosophy/Substance',
+    'Substance',
+    greek_term='ousia',
+)
+
+# How much or how many something is (Aristotle's examples: four-foot, five-foot).
+AristotelianCategory.Quantity = AristotelianCategory(
+    'wmoop.philosophy/Quantity',
+    'Quantity',
+    greek_term='poson',
+)
+
+# What sort of thing something is (Aristotle's examples: white, grammatical).
+AristotelianCategory.Quality = AristotelianCategory(
+    'wmoop.philosophy/Quality',
+    'Quality',
+    greek_term='poion',
+)
+
+# How something stands to something else (Aristotle's examples: double, half, greater).
+AristotelianCategory.Relation = AristotelianCategory(
+    'wmoop.philosophy/Relation',
+    'Relation',
+    greek_term='pros ti',
+)
+
+# Where something is (Aristotle's examples: in the Lyceum, in the market-place).
+AristotelianCategory.Place = AristotelianCategory(
+    'wmoop.philosophy/Place',
+    'Place',
+    greek_term='pou',
+)
+
+# When something is (Aristotle's examples: yesterday, last year). The category of 'when', distinct from the physical quantity of time.
+AristotelianCategory.Time = AristotelianCategory(
+    'wmoop.philosophy/Time',
+    'Time',
+    greek_term='pote',
+)
+
+# The posture in which something is placed (Aristotle's examples: is lying, is sitting).
+AristotelianCategory.Position = AristotelianCategory(
+    'wmoop.philosophy/Position',
+    'Position',
+    greek_term='keisthai',
+)
+
+# The condition of having something (Aristotle's examples: has shoes on, has armour on).
+AristotelianCategory.State = AristotelianCategory(
+    'wmoop.philosophy/State',
+    'State',
+    greek_term='echein',
+)
+
+# The doing of something (Aristotle's examples: to cut, to burn).
+AristotelianCategory.Action = AristotelianCategory(
+    'wmoop.philosophy/Action',
+    'Action',
+    greek_term='poiein',
+)
+
+# The undergoing of something, being acted upon (Aristotle's examples: to be cut, to be burned).
+AristotelianCategory.Affection = AristotelianCategory(
+    'wmoop.philosophy/Affection',
+    'Affection',
+    greek_term='paschein',
+)
+
+# The study of what there is and the fundamental nature of reality: being, objects, properties, causation, time and possibility.
+Branch.Metaphysics = Branch(
+    'wmoop.philosophy/Metaphysics',
+    'Metaphysics',
+    central_question='What is there, and what is its fundamental nature?',
+)
+
+# The study of knowledge: its nature, sources, limits and justification, and the difference between knowledge and mere belief.
+Branch.Epistemology = Branch(
+    'wmoop.philosophy/Epistemology',
+    'Epistemology',
+    central_question='What is knowledge, and what can we know?',
+)
+
+# The study of right action, the good, and how one ought to live.
+Branch.Ethics = Branch(
+    'wmoop.philosophy/Ethics',
+    'Ethics',
+    central_question='What ought one to do, and what is a good life?',
+)
+
+# The study of valid inference and the forms of correct reasoning. Its status as a branch of philosophy, rather than of mathematics, is itself debated.
+Branch.Logic = Branch(
+    'wmoop.philosophy/Logic',
+    'Logic',
+    central_question='What distinguishes a valid inference from an invalid one?',
+)
+
+# The study of beauty, taste and the nature and value of art and aesthetic experience.
+Branch.Aesthetics = Branch(
+    'wmoop.philosophy/Aesthetics',
+    'Aesthetics',
+    central_question='What is beauty, and what is the nature of art?',
+)

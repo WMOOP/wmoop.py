@@ -11,10 +11,14 @@ from __future__ import annotations
 import datetime  # noqa: F401
 from collections.abc import Iterable
 from enum import Enum
+from typing import ClassVar
 
 import wmoop.architecture as _architecture
 import wmoop.org as _org
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class ISCEDLevel(str, Enum):
@@ -51,7 +55,7 @@ class EducationalInstitution(*ext('education', 'EducationalInstitution'), _org.O
         super().__init__(id, name, legal_name=legal_name, founding_date=founding_date)
         self._wm_isced_levels = tuple(ISCEDLevel(v) for v in isced_levels)
         if not self._wm_isced_levels:
-            raise ValueError("isced_levels needs at least one value.")
+            raise WmoopValueError("WM-CARDINALITY", "isced_levels needs at least one value.")
 
     @property
     def isced_levels(self) -> tuple[ISCEDLevel, ...]:
@@ -115,6 +119,12 @@ class CurriculumSubject(*ext('education', 'CurriculumSubject'), Entity):
     WM_ID = 'wmoop.education/CurriculumSubject'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Mathematics: ClassVar[CurriculumSubject]
+    RomanianLanguage: ClassVar[CurriculumSubject]
+    Biology: ClassVar[CurriculumSubject]
+    Music: ClassVar[CurriculumSubject]
+
     assessed_by = Many('Mark', inverse='for_subject', doc='Inverse of wmoop.education/Mark#forSubject.')
     taught_by = Many('Teacher', inverse='teaches', doc='Inverse of wmoop.education/Teacher#teaches.')
 
@@ -140,10 +150,10 @@ class Mark(*ext('education', 'Mark'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, value: float, scale: GradingScale, awarded_on: datetime.date | None = None) -> None:
         super().__init__(id, name)
         if value is None:
-            raise ValueError("value is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "value is required.")
         self._wm_value = value
         if scale is None:
-            raise ValueError("scale is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "scale is required.")
         self._wm_scale = GradingScale(scale)
         self._wm_awarded_on = awarded_on
 
@@ -176,7 +186,7 @@ class StudentClass(*ext('education', 'StudentClass'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, label: str, study_year: int | None = None) -> None:
         super().__init__(id, name)
         if label is None:
-            raise ValueError("label is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "label is required.")
         self._wm_label = label
         self._wm_study_year = study_year
 
@@ -241,5 +251,37 @@ class FormTutor(*ext('education', 'FormTutor'), Role):
 
     WM_ID = 'wmoop.education/FormTutor'
     WM_PLAYED_BY = 'wmoop.nature/Person'
+    WM_MAX_PER_PLAYER = 1
 
     tutors = One('StudentClass', inverse='tutored_by', doc='tutors')
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The study of quantity, structure, space and change.
+CurriculumSubject.Mathematics = CurriculumSubject(
+    'wmoop.education/Mathematics',
+    'Mathematics',
+    iscedf_field='054 Mathematics and statistics',
+)
+
+# The study of the Romanian language and its literature.
+CurriculumSubject.RomanianLanguage = CurriculumSubject(
+    'wmoop.education/RomanianLanguage',
+    'RomanianLanguage',
+    iscedf_field='023 Languages',
+)
+
+# The study of living organisms and their vital processes.
+CurriculumSubject.Biology = CurriculumSubject(
+    'wmoop.education/Biology',
+    'Biology',
+    iscedf_field='051 Biological and related sciences',
+)
+
+# The study of organised sound, its theory, performance and history.
+CurriculumSubject.Music = CurriculumSubject(
+    'wmoop.education/Music',
+    'Music',
+    iscedf_field='021 Arts',
+)

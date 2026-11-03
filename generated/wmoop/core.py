@@ -9,8 +9,12 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class ProvenanceKind(str, Enum):
@@ -29,10 +33,10 @@ class Provenance(*ext('core', 'Provenance'), Entity):
     def __init__(self, id: ConceptId | str, name: str, *, source: str, kind: ProvenanceKind, ref: str | None = None, url: str | None = None, note: str | None = None) -> None:
         super().__init__(id, name)
         if source is None:
-            raise ValueError("source is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "source is required.")
         self._wm_source = source
         if kind is None:
-            raise ValueError("kind is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "kind is required.")
         self._wm_kind = ProvenanceKind(kind)
         self._wm_ref = ref
         self._wm_url = url
@@ -70,6 +74,17 @@ class QuantityKind(*ext('core', 'QuantityKind'), Entity):
     WM_ID = 'wmoop.core/QuantityKind'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    Count: ClassVar[QuantityKind]
+    Length: ClassVar[QuantityKind]
+    Mass: ClassVar[QuantityKind]
+    Time: ClassVar[QuantityKind]
+    Speed: ClassVar[QuantityKind]
+    Area: ClassVar[QuantityKind]
+    Volume: ClassVar[QuantityKind]
+    Temperature: ClassVar[QuantityKind]
+    Angle: ClassVar[QuantityKind]
+
     def __init__(self, id: ConceptId | str, name: str, *, dim_l: int = 0, dim_m: int = 0, dim_t: int = 0, dim_i: int = 0, dim_theta: int = 0, dim_n: int = 0, dim_j: int = 0, canonical_unit: str, derivation: str | None = None) -> None:
         super().__init__(id, name)
         self._wm_dim_l = dim_l
@@ -80,7 +95,7 @@ class QuantityKind(*ext('core', 'QuantityKind'), Entity):
         self._wm_dim_n = dim_n
         self._wm_dim_j = dim_j
         if canonical_unit is None:
-            raise ValueError("canonical_unit is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "canonical_unit is required.")
         self._wm_canonical_unit = canonical_unit
         self._wm_derivation = derivation
 
@@ -136,13 +151,29 @@ class Unit(*ext('core', 'Unit'), Entity):
     WM_ID = 'wmoop.core/Unit'
     WM_KIND = 'concrete'
 
+    # The model's individuals of this class, set at the end of the module.
+    One: ClassVar[Unit]
+    Metre: ClassVar[Unit]
+    Kilometre: ClassVar[Unit]
+    Kilogram: ClassVar[Unit]
+    Second: ClassVar[Unit]
+    Day: ClassVar[Unit]
+    MetrePerSecond: ClassVar[Unit]
+    KilometrePerHour: ClassVar[Unit]
+    SquareMetre: ClassVar[Unit]
+    CubicMetre: ClassVar[Unit]
+    CubicCentimetre: ClassVar[Unit]
+    Kelvin: ClassVar[Unit]
+    DegreeCelsius: ClassVar[Unit]
+    Radian: ClassVar[Unit]
+
     def __init__(self, id: ConceptId | str, name: str, *, symbol: str, quantity_kind: str, factor: float = 1, offset: float = 0) -> None:
         super().__init__(id, name)
         if symbol is None:
-            raise ValueError("symbol is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "symbol is required.")
         self._wm_symbol = symbol
         if quantity_kind is None:
-            raise ValueError("quantity_kind is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "quantity_kind is required.")
         self._wm_quantity_kind = quantity_kind
         self._wm_factor = factor
         self._wm_offset = offset
@@ -166,3 +197,275 @@ class Unit(*ext('core', 'Unit'), Entity):
     def offset(self) -> float:
         """Additive offset applied after the factor when converting to the canonical unit (`toCanonical.offset`; e.g. 273.15 for °C → K)."""
         return self._wm_offset
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# A dimensionless cardinal count of discrete entities.
+QuantityKind.Count = QuantityKind(
+    'wmoop.core/Count',
+    'Count',
+    dim_l=0,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/One',
+)
+
+# Extent in one spatial dimension. SI base quantity L.
+QuantityKind.Length = QuantityKind(
+    'wmoop.core/Length',
+    'Length',
+    dim_l=1,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/Metre',
+)
+
+# The amount of matter in a body. SI base quantity M.
+QuantityKind.Mass = QuantityKind(
+    'wmoop.core/Mass',
+    'Mass',
+    dim_l=0,
+    dim_m=1,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/Kilogram',
+)
+
+# Duration between events. SI base quantity T.
+QuantityKind.Time = QuantityKind(
+    'wmoop.core/Time',
+    'Time',
+    dim_l=0,
+    dim_m=0,
+    dim_t=1,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/Second',
+)
+
+# Rate of change of position; a derived kind, Length per Time.
+QuantityKind.Speed = QuantityKind(
+    'wmoop.core/Speed',
+    'Speed',
+    dim_l=1,
+    dim_m=0,
+    dim_t=-1,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/MetrePerSecond',
+    derivation='Length · Time⁻¹',
+)
+
+# Extent of a two-dimensional surface; a derived kind, Length squared.
+QuantityKind.Area = QuantityKind(
+    'wmoop.core/Area',
+    'Area',
+    dim_l=2,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/SquareMetre',
+    derivation='Length²',
+)
+
+# Extent of a three-dimensional region of space; a derived kind, Length cubed.
+QuantityKind.Volume = QuantityKind(
+    'wmoop.core/Volume',
+    'Volume',
+    dim_l=3,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/CubicMetre',
+    derivation='Length³',
+)
+
+# Thermodynamic temperature. SI base quantity Θ.
+QuantityKind.Temperature = QuantityKind(
+    'wmoop.core/Temperature',
+    'Temperature',
+    dim_l=0,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=1,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/Kelvin',
+)
+
+# Plane angle; a quantity of dimension one, distinct in kind from Count.
+QuantityKind.Angle = QuantityKind(
+    'wmoop.core/Angle',
+    'Angle',
+    dim_l=0,
+    dim_m=0,
+    dim_t=0,
+    dim_i=0,
+    dim_theta=0,
+    dim_n=0,
+    dim_j=0,
+    canonical_unit='wmoop.core/Radian',
+)
+
+# The unit one — the coherent unit of a quantity of dimension one (Count).
+Unit.One = Unit(
+    'wmoop.core/One',
+    'one',
+    symbol='one',
+    quantity_kind='wmoop.core/Count',
+    factor=1,
+    offset=0,
+)
+
+# Metre — the SI base and canonical unit of Length.
+Unit.Metre = Unit(
+    'wmoop.core/Metre',
+    'm',
+    symbol='m',
+    quantity_kind='wmoop.core/Length',
+    factor=1,
+    offset=0,
+)
+
+# Kilometre — a decimal multiple of the metre, used for planetary radii and road distances.
+Unit.Kilometre = Unit(
+    'wmoop.core/Kilometre',
+    'km',
+    symbol='km',
+    quantity_kind='wmoop.core/Length',
+    factor=1000,
+    offset=0,
+)
+
+# Kilogram — the SI base and canonical unit of Mass.
+Unit.Kilogram = Unit(
+    'wmoop.core/Kilogram',
+    'kg',
+    symbol='kg',
+    quantity_kind='wmoop.core/Mass',
+    factor=1,
+    offset=0,
+)
+
+# Second — the SI base and canonical unit of Time.
+Unit.Second = Unit(
+    'wmoop.core/Second',
+    's',
+    symbol='s',
+    quantity_kind='wmoop.core/Time',
+    factor=1,
+    offset=0,
+)
+
+# Day — a non-SI unit of Time accepted for use with the SI, used for orbital periods.
+Unit.Day = Unit(
+    'wmoop.core/Day',
+    'd',
+    symbol='d',
+    quantity_kind='wmoop.core/Time',
+    factor=86400,
+    offset=0,
+)
+
+# Metre per second — the coherent SI (canonical) unit of Speed.
+Unit.MetrePerSecond = Unit(
+    'wmoop.core/MetrePerSecond',
+    'm_per_s',
+    symbol='m/s',
+    quantity_kind='wmoop.core/Speed',
+    factor=1,
+    offset=0,
+)
+
+# Kilometre per hour — a non-coherent unit of Speed used on road vehicles.
+Unit.KilometrePerHour = Unit(
+    'wmoop.core/KilometrePerHour',
+    'km_per_h',
+    symbol='km/h',
+    quantity_kind='wmoop.core/Speed',
+    factor=0.2777777777777778,
+    offset=0,
+)
+
+# Square metre — the coherent SI (canonical) unit of Area.
+Unit.SquareMetre = Unit(
+    'wmoop.core/SquareMetre',
+    'm2',
+    symbol='m2',
+    quantity_kind='wmoop.core/Area',
+    factor=1,
+    offset=0,
+)
+
+# Cubic metre — the coherent SI (canonical) unit of Volume.
+Unit.CubicMetre = Unit(
+    'wmoop.core/CubicMetre',
+    'm3',
+    symbol='m3',
+    quantity_kind='wmoop.core/Volume',
+    factor=1,
+    offset=0,
+)
+
+# Cubic centimetre — a sub-multiple unit of Volume used for engine displacement.
+Unit.CubicCentimetre = Unit(
+    'wmoop.core/CubicCentimetre',
+    'cm3',
+    symbol='cm3',
+    quantity_kind='wmoop.core/Volume',
+    factor=1e-06,
+    offset=0,
+)
+
+# Kelvin — the SI base and canonical unit of thermodynamic Temperature.
+Unit.Kelvin = Unit(
+    'wmoop.core/Kelvin',
+    'K',
+    symbol='K',
+    quantity_kind='wmoop.core/Temperature',
+    factor=1,
+    offset=0,
+)
+
+# Degree Celsius — a unit of Temperature offset from Kelvin by 273.15.
+Unit.DegreeCelsius = Unit(
+    'wmoop.core/DegreeCelsius',
+    'degC',
+    symbol='degC',
+    quantity_kind='wmoop.core/Temperature',
+    factor=1,
+    offset=273.15,
+)
+
+# Radian — the coherent SI (canonical) unit of plane Angle.
+Unit.Radian = Unit(
+    'wmoop.core/Radian',
+    'rad',
+    symbol='rad',
+    quantity_kind='wmoop.core/Angle',
+    factor=1,
+    offset=0,
+)

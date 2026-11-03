@@ -15,7 +15,10 @@ the documentation repository, [`wmoop.doc`](https://github.com/WMOOP/wmoop.doc):
 
 ## Working in this repository
 
-- **Run:** see the [README](README.md) (`python demo.py`, `python tests.py`).
+- **Run:** see the [README](README.md) (`python demo.py`, `python conformance.py`).
+- **Checks:** the conformance vectors are shared by every binding and live in
+  [`wmoop.doc/conformance`](https://github.com/WMOOP/wmoop.doc/tree/main/conformance). A new check
+  is a vector there, not a test here. `conformance.py` only runs them.
 - **Where changes belong:** the data classes are generated from the canonical WML model in
   [`wmoop.doc/model`](https://github.com/WMOOP/wmoop.doc/tree/main/model) by
   [`wmoop.tools`](https://github.com/WMOOP/wmoop.tools). `generated/` is written only by the

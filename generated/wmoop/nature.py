@@ -9,8 +9,12 @@
 from __future__ import annotations
 
 import datetime  # noqa: F401
+from typing import ClassVar
 
-from wmoop._kernel import ConceptId, Entity, Many, One, Quantity, Role, ext  # noqa: F401
+from wmoop._kernel import (  # noqa: F401
+    ConceptId, Entity, Many, One, Quantity, Role, WmoopError, WmoopStateError, WmoopTypeError, WmoopValueError,
+    check_quantity, ext,
+)
 
 
 class AnatomicalStructure(*ext('nature', 'AnatomicalStructure'), Entity):
@@ -35,6 +39,13 @@ class OrganSystem(*ext('nature', 'OrganSystem'), Entity):
 
     WM_ID = 'wmoop.nature/OrganSystem'
     WM_KIND = 'concrete'
+
+    # The model's individuals of this class, set at the end of the module.
+    CardiovascularSystem: ClassVar[OrganSystem]
+    NervousSystem: ClassVar[OrganSystem]
+    RespiratorySystem: ClassVar[OrganSystem]
+    DigestiveSystem: ClassVar[OrganSystem]
+    UrinarySystem: ClassVar[OrganSystem]
 
     has_organ = Many('Organ', inverse='part_of_system', doc='Inverse of wmoop.nature/Organ#partOfSystem.')
 
@@ -115,7 +126,7 @@ class Person(*ext('nature', 'Person'), Human):
     def __init__(self, id: ConceptId | str, name: str, *, leg_count: int | None = None, full_name: str, date_of_birth: datetime.date | None = None) -> None:
         super().__init__(id, name, leg_count=leg_count)
         if full_name is None:
-            raise ValueError("full_name is required.")
+            raise WmoopValueError("WM-REQUIRED-MISSING", "full_name is required.")
         self._wm_full_name = full_name
         self._wm_date_of_birth = date_of_birth
 
@@ -128,3 +139,36 @@ class Person(*ext('nature', 'Person'), Human):
     def date_of_birth(self) -> datetime.date | None:
         """The calendar date on which the person was born."""
         return self._wm_date_of_birth
+
+
+# --- Individuals: the model's reference instances (L2) ---
+
+# The system of heart and blood vessels that circulates blood around the body.
+OrganSystem.CardiovascularSystem = OrganSystem(
+    'wmoop.nature/CardiovascularSystem',
+    'CardiovascularSystem',
+)
+
+# The system of brain, spinal cord and nerves that detects stimuli and coordinates responses.
+OrganSystem.NervousSystem = OrganSystem(
+    'wmoop.nature/NervousSystem',
+    'NervousSystem',
+)
+
+# The system of airways and lungs that takes in oxygen and expels carbon dioxide.
+OrganSystem.RespiratorySystem = OrganSystem(
+    'wmoop.nature/RespiratorySystem',
+    'RespiratorySystem',
+)
+
+# The system that ingests, breaks down and absorbs food and eliminates waste.
+OrganSystem.DigestiveSystem = OrganSystem(
+    'wmoop.nature/DigestiveSystem',
+    'DigestiveSystem',
+)
+
+# The system of kidneys and urinary tract that filters blood and excretes urine.
+OrganSystem.UrinarySystem = OrganSystem(
+    'wmoop.nature/UrinarySystem',
+    'UrinarySystem',
+)

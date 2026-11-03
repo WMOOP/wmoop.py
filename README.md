@@ -16,7 +16,7 @@ them in each language's idioms.
 > The canonical model and all design documents live in
 > [`wmoop.doc`](https://github.com/WMOOP/wmoop.doc). The data classes here are **generated** from
 > the WML model by [`wmoop.tools`](https://github.com/WMOOP/wmoop.tools); this repo adds only the
-> behaviour, the design patterns, the demos and the conformance tests.
+> behaviour, the design patterns, the demos and the runner of the shared conformance vectors.
 
 ## Parity with the C# binding
 
@@ -31,7 +31,7 @@ them in each language's idioms.
 | Visitor hook | interface `IAreaVisitor` | `typing.Protocol` (`AreaVisitor`) |
 | Specification combinators | `.And()/.Or()/.Not()` | `&` / `\|` / `~` dunder operators |
 | Generics | `ISpecification<T>` | `Generic[T]` |
-| Conformance tests | 16 checks, non-zero exit | the same 16 checks, non-zero exit |
+| Conformance | `Wmoop.Tests` runs the shared vectors of `wmoop.doc` | `conformance.py` runs the same vectors |
 
 Same semantics, idiomatic surface. That is exactly the "write once, replicate everywhere" story.
 
@@ -50,7 +50,7 @@ wmoop.py/
 │   └── geography.py        # AreaVisitor; total_population and accept on the areas
 ├── demo.py                 # cross-domain roles + polymorphism walkthrough
 ├── patterns_demo.py        # one section per design pattern, self-checking
-├── tests.py                # the 16 conformance checks
+├── conformance.py          # runs the shared conformance vectors from external/wmoop.doc
 └── external/               # git submodules: wmoop.doc (the model), wmoop.tools (the generator)
 ```
 
@@ -60,15 +60,35 @@ generated modules, and `wmoop/` adds the hand-written `wmoop.patterns`. The scri
 
 ## Run
 
-Requires **Python 3.10+**. No third-party dependencies.
+Requires **Python 3.10+**. No third-party dependencies. The conformance vectors come from the
+`external/wmoop.doc` submodule, so clone with `--recurse-submodules` (or run
+`git submodule update --init`).
 
 ```bash
 python demo.py
 python patterns_demo.py
-python tests.py        # exits non-zero on failure
+python conformance.py  # the shared conformance vectors; exits non-zero on failure
 ```
 
 (On Windows the launcher is usually `py` instead of `python`.)
+
+## Conformance
+
+The checks are not written here. They are the shared conformance vectors of
+[`wmoop.doc/conformance`](https://github.com/WMOOP/wmoop.doc/tree/main/conformance), written once
+as data and run by every binding, so `wmoop.py` and `wmoop.net` provably agree.
+[`conformance.py`](conformance.py) reads the bundle `external/wmoop.doc/conformance/suite.json`:
+
+- A model type resolves through the generated `WM_ID`.
+- A model name such as `wheelCount` matches the member `wheel_count`.
+- An error matches by its registry code (`WmoopError.code`).
+- Python itself refuses a call that leaves out a keyword-only argument without a default. The
+  runner reports that as the model's `WM-REQUIRED-MISSING`.
+
+A `pending` vector describes a rule the model has and no binding enforces yet. It is reported
+but does not fail the run. Because the vectors are pinned with the model, a regeneration that
+brings new vectors also runs them. To add or change a check, add a vector in `wmoop.doc`, not a
+test here.
 
 ## Generated binding
 
