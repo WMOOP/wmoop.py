@@ -1,18 +1,22 @@
-"""wmoop.patterns — hand-written behaviour over the model (mirrors C# ``Wmoop.Patterns``).
+"""wmoop.patterns — hand-written behaviour over the generated model (mirrors C# ``Wmoop.Patterns``).
 
 Visitor, Specification (with ``&``/``|``/``~`` operators), Builder, Strategy and a
 Registry/Flyweight. Behaviour lives here, OUTSIDE the data model.
+
+``wmoop`` is a namespace package (PEP 420): ``generated/wmoop`` holds the generated modules and
+this directory adds the hand-written ``wmoop.patterns``, with no ``__init__.py`` in either.
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
 from datetime import date
-from typing import Callable, Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
-from .core import ConceptId, Entity, Role
-from .nature import Person
-from .transport import DriverRole, OwnerRole, Vehicle
-from .geography import AdministrativeArea, City, Country, County
+from wmoop.core import ConceptId, Entity, Role
+from wmoop.geography import AdministrativeArea, City, Country, County
+from wmoop.nature import Person
+from wmoop.transport import Driver, LicenceCategory, Owner, Vehicle
 
 
 # --------------------------------------------------------------------------- Visitor
@@ -29,12 +33,13 @@ class PrettyPrintVisitor:
 
     def _line(self, area: AdministrativeArea) -> None:
         indent = "  " * self._depth
-        self._lines.append(f"{indent}- {area.name} ({area.area_kind}, pop {area.resident_population})")
+        pop = area.resident_population if area.resident_population is not None else "unknown"
+        self._lines.append(f"{indent}- {area.name} ({area.area_kind}, pop {pop})")
 
     def _descend(self, area: AdministrativeArea) -> None:
         self._line(area)
         self._depth += 1
-        for child in area.children:
+        for child in area.contains:
             child.accept(self)
         self._depth -= 1
 
@@ -56,8 +61,8 @@ class PopulationSumVisitor:
         self.city_count = 0
 
     def _recurse(self, area: AdministrativeArea) -> None:
-        self.total += area.resident_population
-        for child in area.children:
+        self.total += area.resident_population or 0
+        for child in area.contains:
             child.accept(self)
 
     def visit_country(self, country: Country) -> None:
@@ -67,7 +72,7 @@ class PopulationSumVisitor:
         self._recurse(county)
 
     def visit_city(self, city: City) -> None:
-        self.total += city.resident_population
+        self.total += city.resident_population or 0
         self.city_count += 1
 
 
@@ -82,13 +87,13 @@ class Specification(ABC, Generic[T]):
     def is_satisfied_by(self, candidate: T) -> bool:
         ...
 
-    def __and__(self, other: "Specification[T]") -> "Specification[T]":
+    def __and__(self, other: Specification[T]) -> Specification[T]:
         return _And(self, other)
 
-    def __or__(self, other: "Specification[T]") -> "Specification[T]":
+    def __or__(self, other: Specification[T]) -> Specification[T]:
         return _Or(self, other)
 
-    def __invert__(self) -> "Specification[T]":
+    def __invert__(self) -> Specification[T]:
         return _Not(self)
 
 
@@ -117,14 +122,18 @@ class _Not(Specification[T]):
 
 
 class ActiveDriverSpecification(Specification[Person]):
-    """Satisfied when a Person holds a DriverRole valid for a category on a date."""
+    """Satisfied when a Person holds a Driver role valid for a licence category on a date.
 
-    def __init__(self, category: str, on: date) -> None:
+    It reads a ROLE (``get_role``), never a subclass: the cross-domain facet stays composed, so
+    this rule works without ``wmoop.nature`` ever knowing about licences.
+    """
+
+    def __init__(self, category: LicenceCategory | str, on: date) -> None:
         self._category = category
         self._on = on
 
     def is_satisfied_by(self, candidate: Person) -> bool:
-        licence = candidate.get_role(DriverRole)
+        licence = candidate.get_role(Driver)
         return licence is not None and licence.can_drive(self._category, self._on)
 
 
@@ -133,35 +142,47 @@ class PersonBuilder:
     """Fluent builder assembling a Person together with the roles they play."""
 
     def __init__(self) -> None:
-        self._id = None
+        self._id: ConceptId | str | None = None
         self._name = "Unnamed"
-        self._birth_year = 1970
+        self._full_name: str | None = None
+        self._date_of_birth: date | None = None
         self._role_factories: list[Callable[[], Role]] = []
 
-    def with_id(self, id) -> "PersonBuilder":
+    def with_id(self, id: ConceptId | str) -> PersonBuilder:
         self._id = id
         return self
 
-    def named(self, name: str) -> "PersonBuilder":
+    def named(self, name: str, full_name: str | None = None) -> PersonBuilder:
         self._name = name
+        self._full_name = full_name
         return self
 
-    def born_in(self, year: int) -> "PersonBuilder":
-        self._birth_year = year
+    def born_on(self, date_of_birth: date) -> PersonBuilder:
+        self._date_of_birth = date_of_birth
         return self
 
-    def with_driver_licence(self, number, categories, issue: date, expiry: date) -> "PersonBuilder":
-        self._role_factories.append(lambda: DriverRole(number, categories, issue, expiry))
+    def with_driver_licence(self, number: str, categories: Iterable[LicenceCategory | str],
+                            expiry: date | None = None) -> PersonBuilder:
+        held = tuple(categories)
+        self._role_factories.append(
+            lambda: Driver(licence_number=number, licence_categories=held, licence_expiry=expiry))
         return self
 
-    def with_ownership(self, asset: Vehicle, since: date) -> "PersonBuilder":
-        self._role_factories.append(lambda: OwnerRole(asset, since))
+    def with_ownership(self, since: date, *vehicles: Vehicle) -> PersonBuilder:
+        def make() -> Owner:
+            owner = Owner(owned_since=since)
+            for vehicle in vehicles:
+                owner.owns.add(vehicle)
+            return owner
+
+        self._role_factories.append(make)
         return self
 
     def build(self) -> Person:
         if self._id is None:
             raise RuntimeError("A person needs a ConceptId; call with_id() first.")
-        person = Person(self._id, self._name, self._birth_year)
+        person = Person(self._id, self._name, full_name=self._full_name or self._name,
+                        date_of_birth=self._date_of_birth)
         for make in self._role_factories:
             person.add_role(make())
         return person
@@ -184,7 +205,7 @@ class CompactAreaFormat(AreaFormatStrategy):
 class CensusAreaFormat(AreaFormatStrategy):
     def format(self, area: AdministrativeArea) -> str:
         return (f"{area.name} [{area.area_kind}] pop={area.total_population:,} "
-                f"across {len(area.children)} sub-area(s)")
+                f"across {len(area.contains)} sub-area(s)")
 
 
 # -------------------------------------------------------------------- Registry+Flyweight
@@ -204,7 +225,7 @@ class ConceptRegistry:
         self._entities[entity.id.value] = entity
         return entity
 
-    def resolve(self, id) -> Optional[Entity]:
+    def resolve(self, id: ConceptId | str) -> Entity | None:
         key = id.value if isinstance(id, ConceptId) else str(id)
         return self._entities.get(key)
 

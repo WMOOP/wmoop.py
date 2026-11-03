@@ -15,4 +15,4 @@ jobs:
     uses: WMOOP/wmoop.tools/.github/workflows/binding.yml@main
     with:
       lang: python
-      test: python tests.py && python tests_generated.py
+      test: python tests.py && python patterns_demo.py && python demo.py

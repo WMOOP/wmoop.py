@@ -24,7 +24,7 @@ jobs:
     with:
       lang: python
       mode: regen
-      test: python tests.py && python tests_generated.py
+      test: python tests.py && python patterns_demo.py && python demo.py
     secrets:
       app-id: ${{ secrets.WMOOP_BOT_APP_ID }}
       app-private-key: ${{ secrets.WMOOP_BOT_PRIVATE_KEY }}
